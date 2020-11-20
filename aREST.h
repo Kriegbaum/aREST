@@ -17,8 +17,8 @@
   Version 2.7.4: Fix for the Arduino Ethernet 2.0 library
   Version 2.7.3: Added support to set your own ID when using API key
   Version 2.7.2: Bug fixes for aREST.io
-  Version 2.7.1: Additional fixes & optimisations by @eykamp 
-  Version 2.7.0: Several fixes & optimisations by @eykamp 
+  Version 2.7.1: Additional fixes & optimisations by @eykamp
+  Version 2.7.0: Several fixes & optimisations by @eykamp
   Version 2.6.0: Added support for new aREST cloud app
   Version 2.5.0: Added support for the ESP32 WiFi chip (local & cloud)
   Version 2.4.2: Added publish() support for MKR1000
@@ -179,7 +179,6 @@ struct Variable {
   virtual void addToBuffer(aREST *arest) const = 0;
 };
 
-
 template<typename T>
 struct TypedVariable: Variable {
   T *var;
@@ -187,14 +186,14 @@ struct TypedVariable: Variable {
 
   TypedVariable(T *v, bool q) : var{v} { quotable = q; }
 
-  void addToBuffer(aREST *arest) const override { 
+  void addToBuffer(aREST *arest) const override {
     arest->addToBuffer(*var, quotable);
-  }  
+  }
 };
 
 public:
 
-public:
+String method;
 
 aREST() {
   initialize();
@@ -211,14 +210,14 @@ aREST(char* rest_remote_server, int rest_port) {
 
 
 template<typename T>
-void variable(const char *name, T *var, bool quotable) { 
+void variable(const char *name, T *var, bool quotable) {
   variables[variables_index] = new TypedVariable<T>(var, quotable);
   variable_names[variables_index] = name;
   variables_index++;
 }
 
 template<typename T>
-void variable(const char *name, T *var) { 
+void variable(const char *name, T *var) {
   variable(name, var, true);
 }
 
@@ -470,6 +469,7 @@ void reset_status() {
   reset();
   answer = "";
   arguments = "";
+  method = "";
 
   index = 0;
   //memset(&buffer[0], 0, sizeof(buffer));
@@ -1200,7 +1200,7 @@ void process(char c) {
             uint16_t eq_position = answer.indexOf('=', header_length); // Replacing 'magic number' 8 for fixed location of '='
             if (eq_position != -1)
               arguments = answer.substring(eq_position + 1, footer_start);
-          } 
+          }
           // All params mode --> pass all parameters, if any, to the function.  Function will be resonsible for parsing
           else if(AREST_PARAMS_MODE == 1) {
             arguments = answer.substring(header_length + 1, footer_start);
@@ -1233,15 +1233,15 @@ void process(char c) {
     }
 
     // Check the type of HTTP request
-    // if (answer.startsWith("GET")) {method = "GET";}
-    // if (answer.startsWith("POST")) {method = "POST";}
-    // if (answer.startsWith("PUT")) {method = "PUT";}
-    // if (answer.startsWith("DELETE")) {method = "DELETE";}
+    if (answer.startsWith("GET")) {method = "GET";}
+    if (answer.startsWith("POST")) {method = "POST";}
+    if (answer.startsWith("PUT")) {method = "PUT";}
+    if (answer.startsWith("DELETE")) {method = "DELETE";}
 
-    // if (DEBUG_MODE && method != "") {
-    //  Serial.print("Selected method: ");
-    //  Serial.println(method);
-    // }
+    if (DEBUG_MODE && method != "") {
+    Serial.print("Selected method: ");
+    Serial.println(method);
+    }
   }
 
   answer = "";
@@ -1300,7 +1300,7 @@ bool send_command(bool headers, bool decodeArgs) {
   if (headers && command != 'r') {
     send_http_headers();
   }
-
+/*
   // Mode selected
   if (command == 'm') {
 
@@ -1427,7 +1427,7 @@ bool send_command(bool headers, bool decodeArgs) {
         addToBufferF(F(", "));
       }
     }
-    
+
     #if !defined(__AVR_ATmega32U4__)
       if (state == 'a') {
         if (!LIGHTWEIGHT) {
@@ -1481,27 +1481,27 @@ bool send_command(bool headers, bool decodeArgs) {
       addToBufferF(F(", "));
     }
   }
-
+*/
   // Function selected
   if (command == 'f') {
 
     // Execute function
-    if (decodeArgs)
-      urldecode(arguments); // Modifies arguments
+    //if (decodeArgs)
+    urldecode(arguments); // Modifies arguments
 
-    int result = functions[value](arguments);
+    char * result = functions[value](arguments);
 
     // Send feedback to client
     if (!LIGHTWEIGHT) {
-      addToBufferF(F("{\"return_value\": "));
-      addToBuffer(result, true);
-      addToBufferF(F(", "));
+      //addToBufferF(F("{\"return_value\": "));
+      addStringToBuffer(result, false);
+      //addToBufferF(F(", "));
       // addToBufferF(F(", \"message\": \""));
       // addStringToBuffer(functions_names[value]);
       // addToBufferF(F(" executed\", "));
     }
   }
-
+/*
   if (command == 'r' || command == 'u') {
     root_answer();
   }
@@ -1525,7 +1525,7 @@ bool send_command(bool headers, bool decodeArgs) {
       addToBufferF(F("\r\n"));
     }
   }
-
+*/
   if (DEBUG_MODE) {
     #if defined(ESP8266) || defined(ESP32)
         Serial.print("Memory loss:");
@@ -1577,7 +1577,7 @@ virtual void root_answer() {
 }
 
 
-void function(char * function_name, int (*f)(String)){
+void function(char * function_name, char * (*f)(String)){
 
   functions_names[functions_index] = function_name;
   functions[functions_index] = f;
@@ -1625,7 +1625,7 @@ void set_id(const String& device_id) {
 
       // Build client ID
       client_id = id + String(proKey);
-      
+
   }
 
   #endif
@@ -1709,7 +1709,7 @@ void addQuote() {
   if(index < OUTPUT_BUFFER_SIZE) {
     buffer[index] = '"';
     index++;
-  }  
+  }
 }
 
 
@@ -1756,9 +1756,9 @@ void addToBuffer(T toAdd, bool quotable=false) {
 
 // Register a function instead of a plain old variable!
 template <typename T>
-void addToBuffer(T(*toAdd)(), bool quotable=true) { 
+void addToBuffer(T(*toAdd)(), bool quotable=true) {
   addToBuffer(toAdd(), quotable);
-} 
+}
 
 
 // // Add to output buffer
@@ -2021,7 +2021,7 @@ private:
 
   // Functions array
   uint8_t functions_index;
-  int (*functions[NUMBER_FUNCTIONS])(String);
+  char * (*functions[NUMBER_FUNCTIONS])(String);
   char * functions_names[NUMBER_FUNCTIONS];
 
   // Memory debug
