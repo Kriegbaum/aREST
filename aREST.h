@@ -132,7 +132,7 @@
 // Useful for more complex situations, where the key name as well as its value is important, or there are mutliple key-value pairs
 //    function?params=hello    ==> params=hello gets passed to the function
 #ifndef AREST_PARAMS_MODE
-#define AREST_PARAMS_MODE 0
+#define AREST_PARAMS_MODE 1
 #endif
 
 // Use light answer mode
