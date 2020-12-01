@@ -131,8 +131,9 @@
 // Use 1 to pass the entire parameter string to the function, which will be responsible for parsing the parameter string
 // Useful for more complex situations, where the key name as well as its value is important, or there are mutliple key-value pairs
 //    function?params=hello    ==> params=hello gets passed to the function
+//Use 3 to read the argument string out at the start of the JSON block
 #ifndef AREST_PARAMS_MODE
-#define AREST_PARAMS_MODE 1
+#define AREST_PARAMS_MODE 3
 #endif
 
 // Use light answer mode
@@ -866,8 +867,20 @@ void handle_proto(T& serial, bool headers, uint8_t read_delay, bool decode)
     //if (DEBUG_MODE) {Serial.print(c);}
 
     // Process data
+    //if(AREST_PARAMS_MODE != 3) {
     process(c);
+      //}
+   }
 
+   if(AREST_PARAMS_MODE == 3) {
+     uint16_t jsonStart = answer.indexOf("application/json");
+     if(jsonStart > -1) {
+       jsonStart = answer.indexOf("{", jsonStart);
+       arguments = answer.substring(jsonStart);
+     }
+     else {
+       arguments = "FAILURE";
+     }
    }
 
    // Send command
@@ -1190,7 +1203,7 @@ void process(char c) {
         // Get command -- Anything following the first '=' in answer will be put in the arguments string.
         arguments = "";
         uint16_t header_length = strlen(functions_names[i]);
-        if (answer.substring(header_length, header_length + 1) == "?") {
+          if (answer.substring(header_length, header_length + 1) == "?") {
           uint16_t footer_start = answer.length();
           if (answer.endsWith(" HTTP/"))
             footer_start -= 6; // length of " HTTP/"
